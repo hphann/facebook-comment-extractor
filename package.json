@@ -1,0 +1,48 @@
+{
+  "name": "facebook-comment-extractor",
+  "version": "1.0.0",
+  "description": "🚀 Một ứng dụng web hiện đại để trích xuất bình luận Facebook với giao diện đẹp mắt và animation mượt mà",
+  "main": "server/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && nodemon server.js",
+    "client:dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && node server.js",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "clean": "rm -rf node_modules server/node_modules client/node_modules",
+    "reset": "npm run clean && npm run install:all"
+  },
+  "keywords": [
+    "facebook",
+    "comments",
+    "scraping",
+    "extraction",
+    "social-media",
+    "nextjs",
+    "nodejs",
+    "apify",
+    "csv",
+    "web-app"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/facebook-comment-extractor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/facebook-comment-extractor/issues"
+  },
+  "homepage": "https://github.com/yourusername/facebook-comment-extractor#readme",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT"
+} 

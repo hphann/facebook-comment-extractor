@@ -1,0 +1,93 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: 🧪 Test Application
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: 📦 Install dependencies
+        run: |
+          npm ci
+          cd server && npm ci
+          cd ../client && npm ci
+
+      - name: 🔍 Lint code
+        run: |
+          cd client && npm run lint
+
+      - name: 🏗️ Build application
+        run: |
+          cd client && npm run build
+
+      - name: ✅ Run tests (if available)
+        run: |
+          # cd client && npm test
+          echo "Tests would run here"
+
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛡️ Run security audit
+        run: |
+          npm audit --audit-level moderate
+          cd server && npm audit --audit-level moderate
+          cd ../client && npm audit --audit-level moderate
+
+  build:
+    name: 🏗️ Build & Deploy
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: 📦 Install dependencies
+        run: npm run install:all
+
+      - name: 🏗️ Build production
+        run: |
+          cd client && npm run build
+
+      - name: 📊 Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-files
+          path: client/.next/
+
+    # Uncomment khi có deployment target
+    # - name: 🚀 Deploy to production
+    #   run: |
+    #     echo "Deploy commands here"
