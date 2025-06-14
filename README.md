@@ -42,6 +42,11 @@
 - npm hoặc yarn
 - Token API Apify (có thể đăng ký miễn phí)
 
+## 🌐 **Live Demo & Deploy**
+
+**📱 Sử dụng ngay:** [https://your-app.vercel.app](https://your-app.vercel.app)  
+**🔧 Deploy Guide:** [DEPLOYMENT.md](./DEPLOYMENT.md)
+
 ## 🚀 Cài đặt và chạy
 
 ### 1. Clone dự án

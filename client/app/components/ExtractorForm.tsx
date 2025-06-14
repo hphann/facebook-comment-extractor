@@ -63,7 +63,8 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
     }, 1000)
 
     try {
-      const response = await axios.post('http://localhost:5000/api/extract', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await axios.post(`${API_URL}/api/extract`, {
         token: formData.token,
         url: formData.url,
         maxComments: parseInt(formData.maxComments)
@@ -104,9 +105,10 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
     e.stopPropagation() // Ngăn event bubbling
     
     if (result?.downloadUrl) {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const fullUrl = result.downloadUrl.startsWith('http') 
         ? result.downloadUrl 
-        : `http://localhost:5000${result.downloadUrl}`;
+        : `${API_URL}${result.downloadUrl}`;
       
       // Tạo link download tạm thời
       const link = document.createElement('a');

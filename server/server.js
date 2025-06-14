@@ -13,7 +13,20 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware bảo mật
 app.use(helmet());
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+    origin: [
+        'http://localhost:3000',
+        'https://localhost:3000',
+        // Thêm domain Vercel của bạn sau khi deploy
+        // 'https://your-app-name.vercel.app'
+    ],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Rate limiting
@@ -186,7 +199,14 @@ app.get('/api/download/:filename', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Server đang hoạt động' });
+    res.status(200).json({
+        status: 'OK',
+        message: 'Server đang hoạt động',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+        version: require('./package.json').version
+    });
 });
 
 app.listen(PORT, () => {
