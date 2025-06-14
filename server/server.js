@@ -19,8 +19,8 @@ const corsOptions = {
     origin: [
         'http://localhost:3000',
         'https://localhost:3000',
-        // Thêm domain Vercel của bạn sau khi deploy
-        // 'https://your-app-name.vercel.app'
+        'https://facebook-comment-extractor.vercel.app/',
+        'https://facebook-comment-extractor-production.up.railway.app/'
     ],
     credentials: true,
     optionsSuccessStatus: 200
