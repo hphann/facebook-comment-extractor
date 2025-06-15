@@ -6,6 +6,7 @@ const { ApifyClient } = require('apify-client');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 require('dotenv').config();
 
 const app = express();
@@ -16,12 +17,28 @@ app.use(helmet());
 
 // CORS configuration
 const corsOptions = {
-    origin: [
-        'http://localhost:3000',
-        'https://localhost:3000',
-        'https://facebook-comment-extractor.vercel.app/',
-        'https://facebook-comment-extractor-production.up.railway.app/'
-    ],
+    origin: function (origin, callback) {
+        // Cho phép requests không có origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+            'http://localhost:3000',
+            'https://localhost:3000',
+            'https://facebook-comment-extractor.vercel.app',
+            'https://facebook-comment-extractor-production.up.railway.app'
+        ];
+
+        // Cho phép domain Vercel và Railway với subdomain bất kỳ
+        const isDevelopment = process.env.NODE_ENV !== 'production';
+        const isVercelDomain = origin.includes('.vercel.app');
+        const isRailwayDomain = origin.includes('.railway.app');
+
+        if (isDevelopment || allowedOrigins.includes(origin) || isVercelDomain || isRailwayDomain) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Không được phép bởi CORS'), false);
+    },
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -39,8 +56,16 @@ app.use('/api/extract', limiter);
 
 // Tạo thư mục downloads nếu chưa có
 const downloadsDir = path.join(__dirname, 'downloads');
-if (!fs.existsSync(downloadsDir)) {
-    fs.mkdirSync(downloadsDir);
+try {
+    if (!fs.existsSync(downloadsDir)) {
+        fs.mkdirSync(downloadsDir, { recursive: true });
+        console.log('✅ Đã tạo thư mục downloads');
+    }
+} catch (error) {
+    console.error('⚠️  Không thể tạo thư mục downloads:', error.message);
+    // Sử dụng thư mục tạm thời của hệ thống
+    const downloadsDir = os.tmpdir();
+    console.log('📁 Sử dụng thư mục tạm thời:', downloadsDir);
 }
 
 // API endpoint để trích xuất bình luận
@@ -212,6 +237,18 @@ app.get('/api/health', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Server đang chạy trên port ${PORT}`);
     console.log(`📁 Thư mục downloads: ${downloadsDir}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`⚙️  CORS origins configured for production`);
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+    console.error('Global error handler:', error);
+    res.status(500).json({
+        success: false,
+        message: 'Lỗi server nội bộ',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
 });
 
 module.exports = app; 
