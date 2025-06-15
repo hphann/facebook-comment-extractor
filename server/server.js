@@ -70,9 +70,9 @@ try {
 
 // API endpoint để trích xuất bình luận
 app.post('/api/extract', async (req, res) => {
-    // Tăng timeout cho request dài
-    req.setTimeout(300000); // 5 phút
-    res.setTimeout(300000);
+    // Tăng timeout cho request dài - 15 phút cho posts có nhiều comment
+    req.setTimeout(900000); // 15 phút
+    res.setTimeout(900000);
 
     try {
         const { token, url, maxComments = 100 } = req.body;
@@ -100,41 +100,83 @@ app.post('/api/extract', async (req, res) => {
             });
         }
 
-        // Khởi tạo Apify client
-        const client = new ApifyClient({ token });
+        // Khởi tạo Apify client với timeout dài hơn
+        const client = new ApifyClient({
+            token,
+            requestOptions: {
+                timeout: 900000 // 15 phút
+            }
+        });
 
-        // Cấu hình input cho scraper
+        // Cấu hình input cho scraper với timeout settings
         const runInput = {
             startUrls: [{ url }],
             resultsLimit: parseInt(maxComments),
             includeNestedComments: true,
-            viewOption: "RANKED_UNFILTERED"
+            viewOption: "RANKED_UNFILTERED",
+            // Thêm timeout cho Apify actor
+            timeoutSecs: 900 // 15 phút
         };
 
-        // Chạy actor
+        // Chạy actor với monitoring
         console.log('Bắt đầu trích xuất bình luận...');
+        console.log('Max comments:', maxComments);
         console.log('Run input:', JSON.stringify(runInput, null, 2));
-        const run = await client.actor("apify/facebook-comments-scraper").call(runInput);
-        console.log('Run completed:', run.id);
 
-        // Lấy dữ liệu từ dataset
+        const run = await client.actor("apify/facebook-comments-scraper").call(runInput, {
+            // Chờ actor hoàn thành với timeout dài hơn
+            waitSecs: 900 // 15 phút
+        });
+
+        console.log('Run completed:', run.id);
+        console.log('Run status:', run.status);
+
+        // Lấy dữ liệu từ dataset với retry mechanism
         console.log('Lấy dữ liệu từ dataset...');
         const datasetItems = [];
 
         try {
-            // Sử dụng cách đúng để lấy dữ liệu từ Apify dataset
+            // Sử dụng cách đúng để lấy dữ liệu từ Apify dataset với chunking
             const dataset = client.dataset(run.defaultDatasetId);
-            const { items } = await dataset.listItems();
-            datasetItems.push(...items);
+
+            // Lấy dữ liệu theo batch để tránh timeout
+            let offset = 0;
+            const limit = 1000; // Lấy 1000 items mỗi lần
+            let hasMore = true;
+
+            while (hasMore) {
+                console.log(`Đang lấy batch ${Math.floor(offset / limit) + 1}...`);
+                const { items } = await dataset.listItems({
+                    offset,
+                    limit
+                });
+
+                if (items.length === 0) {
+                    hasMore = false;
+                } else {
+                    datasetItems.push(...items);
+                    offset += items.length;
+
+                    // Giới hạn số lượng comment theo maxComments
+                    if (datasetItems.length >= parseInt(maxComments)) {
+                        datasetItems.splice(parseInt(maxComments));
+                        hasMore = false;
+                    }
+                }
+
+                // Log progress
+                console.log(`Đã lấy ${datasetItems.length} comments...`);
+            }
+
         } catch (datasetError) {
             console.error('Lỗi khi lấy dữ liệu từ dataset:', datasetError);
-            throw new Error('Không thể lấy dữ liệu từ dataset');
+            throw new Error('Không thể lấy dữ liệu từ dataset: ' + datasetError.message);
         }
 
         if (datasetItems.length === 0) {
             return res.json({
                 success: false,
-                message: 'Không tìm thấy bình luận nào'
+                message: 'Không tìm thấy bình luận nào. Có thể bài đăng không có comment hoặc đã bị ẩn.'
             });
         }
 
@@ -199,10 +241,35 @@ app.post('/api/extract', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Lỗi khi trích xuất:', error);
-        res.status(500).json({
+        console.error('Lỗi trích xuất:', error);
+
+        let statusCode = 500;
+        let errorMessage = 'Có lỗi xảy ra khi trích xuất bình luận';
+
+        // Handle specific Apify errors
+        if (error.message.includes('timeout') || error.code === 'ECONNABORTED') {
+            statusCode = 504;
+            errorMessage = 'Quá trình trích xuất mất quá nhiều thời gian. Hãy thử giảm số lượng comment hoặc thử lại sau.';
+        } else if (error.message.includes('Actor run') && error.message.includes('failed')) {
+            statusCode = 422;
+            errorMessage = 'Không thể trích xuất từ URL này. Vui lòng kiểm tra URL có đúng và công khai không.';
+        } else if (error.message.includes('dataset')) {
+            statusCode = 503;
+            errorMessage = 'Có lỗi khi lấy dữ liệu. Hãy thử lại sau vài phút.';
+        } else if (error.message.includes('token')) {
+            statusCode = 401;
+            errorMessage = 'Token API không hợp lệ hoặc đã hết hạn.';
+        }
+
+        // Add specific guidance for large comment extraction
+        if (req.body.maxComments > 1000) {
+            errorMessage += '\n\nĐối với posts có nhiều comment (>1000), hãy:\n1. Thử giảm số lượng comment\n2. Đảm bảo post là công khai\n3. Thử lại vào thời điểm khác';
+        }
+
+        res.status(statusCode).json({
             success: false,
-            message: `Lỗi khi trích xuất: ${error.message}`
+            message: errorMessage,
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });

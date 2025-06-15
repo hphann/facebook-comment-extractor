@@ -47,20 +47,41 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
       return
     }
 
+    const maxComments = parseInt(formData.maxComments)
+    
+    // Cảnh báo cho posts có nhiều comment
+    if (maxComments > 1000) {
+      const confirmed = window.confirm(
+        `Bạn đang yêu cầu trích xuất ${maxComments} comment. Quá trình này có thể mất 10-15 phút cho posts có nhiều comment.\n\nBạn có muốn tiếp tục không?`
+      )
+      if (!confirmed) return
+    }
+
     setIsLoading(true)
     setResult(null)
     setProgress(0)
 
-    // Simulate progress
+    // Improved progress simulation cho large extractions
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) {
+        // Cho posts lớn, progress chậm hơn để realistic
+        const increment = maxComments > 1000 ? Math.random() * 5 : Math.random() * 10
+        const newProgress = prev + increment
+        
+        if (newProgress >= 95) {
           clearInterval(progressInterval)
-          return prev
+          return 95 // Giữ ở 95% cho đến khi nhận response
         }
-        return prev + Math.random() * 15
+        return newProgress
       })
-    }, 1000)
+    }, maxComments > 1000 ? 2000 : 1000) // Progress chậm hơn cho posts lớn
+
+    // Show helpful message for large extractions
+    if (maxComments > 1000) {
+      toast.loading('Đang xử lý post có nhiều comment... Vui lòng kiên nhẫn!', {
+        duration: 5000
+      })
+    }
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -69,7 +90,7 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
         url: formData.url,
         maxComments: parseInt(formData.maxComments)
       }, {
-        timeout: 300000, // 5 phút timeout
+        timeout: 900000, // 15 phút timeout cho posts có nhiều comment
         headers: {
           'Content-Type': 'application/json'
         }
@@ -89,7 +110,30 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
     } catch (error: any) {
       clearInterval(progressInterval)
       setProgress(0)
-      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi trích xuất'
+      
+      console.error('Error details:', error)
+      
+      let errorMessage = 'Có lỗi xảy ra khi trích xuất'
+      
+      // Handle specific error cases
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = `Quá trình trích xuất mất quá nhiều thời gian. Đối với posts có ${maxComments} comment, hãy thử:
+        
+1. Giảm số lượng comment xuống dưới 1000
+2. Thử lại sau vài phút
+3. Kiểm tra kết nối internet`
+      } else if (error.response?.status === 499) {
+        errorMessage = `Lỗi 499: Client đã đóng kết nối. Với posts có nhiều comment:
+        
+1. Hãy kiên nhẫn chờ đợi (có thể mất 10-15 phút)
+2. Không refresh trang khi đang xử lý
+3. Thử giảm số lượng comment`
+      } else if (error.response?.status === 504) {
+        errorMessage = 'Lỗi Gateway Timeout. Server mất quá nhiều thời gian xử lý. Hãy thử giảm số lượng comment hoặc thử lại sau.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      }
+      
       setResult({
         success: false,
         message: errorMessage
