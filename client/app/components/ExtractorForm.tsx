@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Download, Loader2, Key, Link, Hash, CheckCircle, XCircle } from 'lucide-react'
+import { Play, Download, Loader2, Key, Link, Hash, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
@@ -23,6 +23,7 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
     count?: number
     downloadUrl?: string
     filename?: string
+    type?: 'success' | 'error' | 'warning'
   } | null>(null)
   const [progress, setProgress] = useState(0)
 
@@ -100,11 +101,17 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
       setProgress(100)
 
       if (response.data.success) {
-        setResult(response.data)
+        setResult({
+          ...response.data,
+          type: 'success'
+        })
         onExtractionComplete(response.data.count)
         toast.success(`Thành công! Đã trích xuất ${response.data.count} bình luận`)
       } else {
-        setResult(response.data)
+        setResult({
+          ...response.data,
+          type: 'error'
+        })
         toast.error(response.data.message)
       }
     } catch (error: any) {
@@ -114,6 +121,7 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
       console.error('Error details:', error)
       
       let errorMessage = 'Có lỗi xảy ra khi trích xuất'
+      let resultType: 'error' | 'warning' = 'error'
       
       // Handle specific error cases
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
@@ -122,23 +130,40 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
 1. Giảm số lượng comment xuống dưới 1000
 2. Thử lại sau vài phút
 3. Kiểm tra kết nối internet`
+        resultType = 'warning' // Đây là warning chứ không phải error
       } else if (error.response?.status === 499) {
         errorMessage = `Lỗi 499: Client đã đóng kết nối. Với posts có nhiều comment:
         
 1. Hãy kiên nhẫn chờ đợi (có thể mất 10-15 phút)
 2. Không refresh trang khi đang xử lý
 3. Thử giảm số lượng comment`
+        resultType = 'warning' // Đây cũng là warning
       } else if (error.response?.status === 504) {
         errorMessage = 'Lỗi Gateway Timeout. Server mất quá nhiều thời gian xử lý. Hãy thử giảm số lượng comment hoặc thử lại sau.'
+        resultType = 'warning' // Timeout cũng là warning
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message
       }
       
       setResult({
         success: false,
-        message: errorMessage
+        message: errorMessage,
+        type: resultType
       })
-      toast.error(errorMessage)
+      
+      // Toast message cũng nên phù hợp với type
+      if (resultType === 'warning') {
+        toast(errorMessage, {
+          icon: '⚠️',
+          style: {
+            background: '#FEF3C7',
+            color: '#92400E',
+            border: '1px solid #F59E0B'
+          }
+        })
+      } else {
+        toast.error(errorMessage)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -323,23 +348,40 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
             className={`p-4 rounded-xl border ${
               result.success
                 ? 'border-green-200 bg-green-50'
+                : result.type === 'warning'
+                ? 'border-yellow-200 bg-yellow-50'
                 : 'border-red-200 bg-red-50'
             }`}
           >
             <div className="flex items-center mb-2">
               {result.success ? (
                 <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+              ) : result.type === 'warning' ? (
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
               ) : (
                 <XCircle className="w-5 h-5 text-red-600 mr-2" />
               )}
               <span className={`font-semibold ${
-                result.success ? 'text-green-800' : 'text-red-800'
+                result.success 
+                  ? 'text-green-800' 
+                  : result.type === 'warning'
+                  ? 'text-yellow-800'
+                  : 'text-red-800'
               }`}>
-                {result.success ? 'Thành công!' : 'Lỗi!'}
+                {result.success 
+                  ? 'Thành công!' 
+                  : result.type === 'warning'
+                  ? 'Cảnh báo!'
+                  : 'Lỗi!'
+                }
               </span>
             </div>
-            <p className={`mb-3 ${
-              result.success ? 'text-green-700' : 'text-red-700'
+            <p className={`mb-3 whitespace-pre-line ${
+              result.success 
+                ? 'text-green-700' 
+                : result.type === 'warning'
+                ? 'text-yellow-700'
+                : 'text-red-700'
             }`}>
               {result.message}
             </p>
