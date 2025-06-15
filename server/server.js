@@ -12,6 +12,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy cho Railway deployment
+app.set('trust proxy', 1);
+
 // Middleware bảo mật
 app.use(helmet());
 
@@ -100,12 +103,9 @@ app.post('/api/extract', async (req, res) => {
             });
         }
 
-        // Khởi tạo Apify client với timeout dài hơn
+        // Khởi tạo Apify client (bỏ requestOptions vì không supported)
         const client = new ApifyClient({
-            token,
-            requestOptions: {
-                timeout: 900000 // 15 phút
-            }
+            token
         });
 
         // Cấu hình input cho scraper với timeout settings
