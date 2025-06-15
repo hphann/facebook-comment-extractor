@@ -149,13 +149,29 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
             <Key className="w-4 h-4 mr-2 text-blue-600" />
             Token API Apify *
           </label>
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700">
+              💡 <strong>Bạn cần có token API Apify riêng để sử dụng công cụ này.</strong> 
+              <br />
+              Đăng ký tại{' '}
+              <a 
+                href="https://apify.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline font-medium"
+              >
+                apify.com
+              </a>
+              {' '}→ Console → Integrations → API tokens → Create new token
+            </p>
+          </div>
           <input
             type="text"
             name="token"
             value={formData.token}
             onChange={handleInputChange}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            placeholder="Nhập token API Apify của bạn (đăng ký tại apify.com)..."
+            placeholder="Nhập token API Apify của bạn..."
             required
           />
         </motion.div>
