@@ -49,14 +49,6 @@ const ExtractorForm: React.FC<ExtractorFormProps> = ({ onExtractionComplete }) =
     }
 
     const maxComments = parseInt(formData.maxComments)
-    
-    // Cảnh báo cho posts có nhiều comment
-    if (maxComments > 1000) {
-      const confirmed = window.confirm(
-        `Bạn đang yêu cầu trích xuất ${maxComments} comment. Quá trình này có thể mất 10-15 phút cho posts có nhiều comment.\n\nBạn có muốn tiếp tục không?`
-      )
-      if (!confirmed) return
-    }
 
     setIsLoading(true)
     setResult(null)
